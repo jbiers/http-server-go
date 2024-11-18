@@ -20,9 +20,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, err = l.Accept()
+	conn, err := l.Accept()
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
+
+	defer conn.Close()
+
+	err = handleConnection(conn)
+	if err != nil {
+		fmt.Println("Error writing to connection: ", err.Error())
+		os.Exit(1)
+	}
+}
+
+func handleConnection(c net.Conn) error {
+	// request will be interpreted here
+
+	res := []byte("HTTP/1.1 200 OK\r\n\r\n")
+
+	_, err := c.Write(res)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
