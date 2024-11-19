@@ -6,12 +6,15 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type HTTPRequest struct {
 	Method      string
 	Target      string
 	HTTPVersion string
+	Headers     map[string]string
 }
 
 func main() {
@@ -37,27 +40,25 @@ func main() {
 
 func handleConnection(c net.Conn) {
 	defer c.Close()
-	log.Println("Accepted connection from: ", c.RemoteAddr())
+	log.Println("Accepted connection from:", c.RemoteAddr())
 
 	data := make([]byte, 1024)
 	_, err := c.Read(data)
 	if err != nil {
-		log.Printf("Error reading from %s connection: %s\n", c.RemoteAddr(), err)
+		log.Printf("Error reading from %s connection: %s\n", c.RemoteAddr(), err.Error())
 		return
 	}
 
 	req, err := parseRequest(data)
-
-	var res []byte
-	if req.Target == "/" {
-		res = []byte("HTTP/1.1 200 OK\r\n\r\n")
-	} else {
-		res = []byte("HTTP/1.1 404 Not Found\r\n\r\n")
+	if err != nil {
+		log.Printf("Error parsing request from %connection: %s\n", c.RemoteAddr(), err.Error())
 	}
+
+	res := craftResponse(req.Target)
 
 	_, err = c.Write(res)
 	if err != nil {
-		log.Printf("Error writing to %s connection: %s\n", c.RemoteAddr(), err)
+		log.Printf("Error writing to %s connection: %s\n", c.RemoteAddr(), err.Error())
 		return
 	}
 }
@@ -80,4 +81,23 @@ func parseRequest(d []byte) (*HTTPRequest, error) {
 	request.HTTPVersion = string(splitReqLine[2])
 
 	return request, nil
+}
+
+func craftResponse(t string) []byte {
+	if t == "/" {
+		return []byte("HTTP/1.1 200 OK\r\n\r\n")
+	}
+
+	s, found := strings.CutPrefix(t, "/echo/")
+	if found {
+		res := "HTTP/1.1 200 OK\r\n"
+		res += "Content-Type: text/plain\r\n"
+		res += "Content-Length: "
+		res += strconv.Itoa(len(s))
+		res += "\r\n\r\n"
+		res += s
+		return []byte(res)
+	}
+
+	return []byte("HTTP/1.1 404 Not Found\r\n\r\n")
 }
