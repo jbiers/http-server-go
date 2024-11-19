@@ -2,13 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
 )
-
-// Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
-var _ = net.Listen
-var _ = os.Exit
 
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -16,7 +13,7 @@ func main() {
 
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
-		fmt.Println("Failed to bind to port 4221")
+		log.Println("Error failed to bind to port 4221")
 		os.Exit(1)
 	}
 	defer l.Close()
@@ -24,28 +21,25 @@ func main() {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
+			log.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
 
-		err = handleConnection(conn)
-		if err != nil {
-			fmt.Println("Error writing to connection: ", err.Error())
-			os.Exit(1)
-		}
+		go handleConnection(conn)
 	}
 }
 
-func handleConnection(c net.Conn) error {
+func handleConnection(c net.Conn) {
 	defer c.Close()
+	log.Println("Accepted connection from: ", c.RemoteAddr())
+
 	// request will be interpreted here
 
 	res := []byte("HTTP/1.1 200 OK\r\n\r\n")
 
 	_, err := c.Write(res)
 	if err != nil {
-		return err
+		log.Printf("Error writing to %s connection: %s\n", c.RemoteAddr(), "err")
+		return
 	}
-
-	return nil
 }
