@@ -2,13 +2,17 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+var directory string
 
 type HTTPRequest struct {
 	Method      string
@@ -19,6 +23,9 @@ type HTTPRequest struct {
 
 func main() {
 	fmt.Println("Logs from your program will appear here!")
+
+	flag.StringVar(&directory, "directory", "", "specifies the directory where the files are stored, as an absolute path.")
+	flag.Parse()
 
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
@@ -116,6 +123,23 @@ func craftResponse(t string, h map[string]string) []byte {
 		res += "\r\n\r\n"
 		res += s
 		return []byte(res)
+	}
+
+	s, found = strings.CutPrefix(t, "/files/")
+	if found {
+		filePath := filepath.Join(directory, s)
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return []byte("HTTP/1.1 404 Not Found\r\n\r\n")
+		}
+
+		res := "HTTP/1.1 200 OK\r\n"
+		res += "Content-Type: text/plain\r\n"
+		res += "Content-Length: "
+		res += strconv.Itoa(len(data))
+		res += "\r\n\r\n"
+
+		return append([]byte(res), data...)
 	}
 
 	found = strings.HasPrefix(t, "/user-agent")
