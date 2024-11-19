@@ -134,7 +134,7 @@ func craftResponse(t string, h map[string]string) []byte {
 		}
 
 		res := "HTTP/1.1 200 OK\r\n"
-		res += "Content-Type: text/plain\r\n"
+		res += "Content-Type: application/octet-stream\r\n"
 		res += "Content-Length: "
 		res += strconv.Itoa(len(data))
 		res += "\r\n\r\n"
