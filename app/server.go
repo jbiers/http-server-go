@@ -19,6 +19,7 @@ type HTTPRequest struct {
 	Target      string
 	HTTPVersion string
 	Headers     map[string]string
+	Body        []byte
 }
 
 func main() {
@@ -61,7 +62,7 @@ func handleConnection(c net.Conn) {
 		log.Printf("Error parsing request from %connection: %s\n", c.RemoteAddr(), err.Error())
 	}
 
-	res := craftResponse(req.Target, req.Headers)
+	res := craftResponse(req.Target, req.Headers, req.Method, &req.Body)
 
 	_, err = c.Write(res)
 	if err != nil {
@@ -106,10 +107,12 @@ func parseRequest(d []byte) (*HTTPRequest, error) {
 		request.Headers[string(keyAndValue[0])] = string(keyAndValue[1])
 	}
 
+	request.Body = splitRest[1]
+
 	return request, nil
 }
 
-func craftResponse(t string, h map[string]string) []byte {
+func craftResponse(t string, h map[string]string, m string, b *[]byte) []byte {
 	if t == "/" {
 		return []byte("HTTP/1.1 200 OK\r\n\r\n")
 	}
@@ -122,6 +125,20 @@ func craftResponse(t string, h map[string]string) []byte {
 		res += strconv.Itoa(len(s))
 		res += "\r\n\r\n"
 		res += s
+		return []byte(res)
+	}
+
+	s, found = strings.CutPrefix(t, "/files/")
+	if found && m == "POST" && h["Content-Type"] == "application/octet-stream" {
+		filePath := filepath.Join(directory, s)
+
+		err := os.WriteFile(filePath, *b, 0777)
+		if err != nil {
+			return []byte("HTTP/1.1 500 Internal Server Error\r\n\r\n")
+		}
+
+		res := "HTTP/1.1 201 OK\r\n\r\n"
+
 		return []byte(res)
 	}
 
