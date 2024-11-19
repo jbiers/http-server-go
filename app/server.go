@@ -107,7 +107,7 @@ func parseRequest(d []byte) (*HTTPRequest, error) {
 		request.Headers[string(keyAndValue[0])] = string(keyAndValue[1])
 	}
 
-	request.Body = splitRest[1]
+	request.Body = bytes.Trim(splitRest[1], "\x00")
 
 	return request, nil
 }
