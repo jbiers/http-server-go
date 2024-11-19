@@ -137,7 +137,7 @@ func craftResponse(t string, h map[string]string, m string, b *[]byte) []byte {
 			return []byte("HTTP/1.1 500 Internal Server Error\r\n\r\n")
 		}
 
-		res := "HTTP/1.1 201 OK\r\n\r\n"
+		res := "HTTP/1.1 201 Created\r\n\r\n"
 
 		return []byte(res)
 	}
