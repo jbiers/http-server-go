@@ -54,7 +54,7 @@ func handleConnection(c net.Conn) {
 		log.Printf("Error parsing request from %connection: %s\n", c.RemoteAddr(), err.Error())
 	}
 
-	res := craftResponse(req.Target)
+	res := craftResponse(req.Target, req.Headers)
 
 	_, err = c.Write(res)
 	if err != nil {
@@ -66,7 +66,7 @@ func handleConnection(c net.Conn) {
 func parseRequest(d []byte) (*HTTPRequest, error) {
 	request := new(HTTPRequest)
 
-	reqLine, _, hasCRLF := bytes.Cut(d, []byte("\r\n"))
+	reqLine, rest, hasCRLF := bytes.Cut(d, []byte("\r\n"))
 	if !hasCRLF {
 		return request, fmt.Errorf("Received malformed request.")
 	}
@@ -80,10 +80,29 @@ func parseRequest(d []byte) (*HTTPRequest, error) {
 	request.Target = string(splitReqLine[1])
 	request.HTTPVersion = string(splitReqLine[2])
 
+	splitRest := bytes.Split(rest, []byte("\r\n\r\n"))
+	if len(splitRest) != 2 {
+		return request, fmt.Errorf("Received malformed request.")
+	}
+
+	byteHeaders := splitRest[0]
+	splitHeaders := bytes.Split(byteHeaders, []byte("\r\n"))
+
+	request.Headers = make(map[string]string)
+	for _, header := range splitHeaders {
+		keyAndValue := bytes.Split(header, []byte(": "))
+
+		if len(keyAndValue) != 2 {
+			return request, fmt.Errorf("Received malformed request headers.")
+		}
+
+		request.Headers[string(keyAndValue[0])] = string(keyAndValue[1])
+	}
+
 	return request, nil
 }
 
-func craftResponse(t string) []byte {
+func craftResponse(t string, h map[string]string) []byte {
 	if t == "/" {
 		return []byte("HTTP/1.1 200 OK\r\n\r\n")
 	}
@@ -96,6 +115,17 @@ func craftResponse(t string) []byte {
 		res += strconv.Itoa(len(s))
 		res += "\r\n\r\n"
 		res += s
+		return []byte(res)
+	}
+
+	found = strings.HasPrefix(t, "/user-agent")
+	if found {
+		res := "HTTP/1.1 200 OK\r\n"
+		res += "Content-Type: text/plain\r\n"
+		res += "Content-Length: "
+		res += strconv.Itoa(len(h["User-Agent"]))
+		res += "\r\n\r\n"
+		res += h["User-Agent"]
 		return []byte(res)
 	}
 
